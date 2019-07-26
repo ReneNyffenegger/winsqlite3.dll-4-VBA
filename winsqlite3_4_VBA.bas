@@ -61,9 +61,9 @@ declare ptrSafe function sqlite3_finalize    lib "winsqlite3.dll" ( _
 ' sqlite3_bind_int {
 declare ptrSafe function sqlite3_bind_int    lib "winsqlite3.dll" ( _
      byVal    stmt            as any     , _
-     byVal    pos             as integer , _
-     byVal    val             as integer   _
-) as longPtr ' }
+     byVal    pos             as long    , _
+     byVal    val             as long      _
+) as long ' }
 
 ' sqlite3_bind_text {
 '
@@ -71,17 +71,17 @@ declare ptrSafe function sqlite3_bind_int    lib "winsqlite3.dll" ( _
 '
 declare ptrSafe function sqlite3_bind_text   lib "winsqlite3.dll" ( _
      byVal    stmt            as any     , _
-     byVal    pos             as integer , _
+     byVal    pos             as long    , _
      byVal    val             as string  , _
      byVal    len_            as integer , _
      byVal    whatIsThis      as longPtr   _
-) as longPtr ' }
+) as long ' }
 
 ' sqlite3_bind_null {
 declare ptrSafe function sqlite3_bind_null   lib "winsqlite3.dll" ( _
      byVal    stmt            as any     , _
-     byVal    pos             as integer   _
-) as longPtr
+     byVal    pos             as long      _
+) as long
 ' }
 
 ' }
