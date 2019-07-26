@@ -26,6 +26,8 @@ sub main() ' {
 
     sqlite3_finalize  stmt
 
+    selectFromTab(db)
+
     closeDB(db)
 
 end sub ' }
@@ -78,3 +80,51 @@ function prepareStmt(db as longPtr, sql as string) as longPtr ' {
     debug.print("stmt = " & prepareStmt)
 
 end function ' }
+
+sub selectFromTab(db as longPtr) ' {
+
+    dim stmt as longPtr
+    stmt = prepareStmt(db, "select * from tab where foo > ? order by foo")
+
+    sqlite3_bind_int stmt, 1, 2
+
+    dim rowNo as long
+
+    while sqlite3_step(stmt) <> SQLITE_DONE ' {
+
+      rowNo = rowNo + 1
+
+      dim colNo as long
+      while colNo < 2 ' {
+
+         if     sqlite3_column_type(stmt, colNo) = SQLITE_INTEGER then
+
+                cells(rowNo, colNo + 1) = sqlite3_column_int(stmt, colNo)
+
+         elseIf sqlite3_column_type(stmt, colNo) = SQLITE_FLOAT   then
+
+                cells(rowNo, colNo + 1) = sqlite3_column_double(stmt, colNo)
+
+         elseIf sqlite3_column_type(stmt, colNo) = SQLITE_TEXT    then
+
+                cells(rowNo, colNo + 1) = sqlite3_column_text(stmt, colNo) ' TODO: Crashes here!
+
+         elseIf sqlite3_column_type(stmt, colNo) = SQLITE_NULL    then
+
+                cells(rowNo, colNo + 1) ="n/a"
+
+         else
+
+                cells(rowNo, colNo + 1) ="?"
+
+         end if
+        
+         colNo = colNo + 1
+
+      wend ' }
+
+    wend ' }
+
+    sqlite3_finalize stmt
+
+end sub ' }
