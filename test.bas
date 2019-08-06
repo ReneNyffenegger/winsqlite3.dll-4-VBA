@@ -1,12 +1,11 @@
 option explicit
 
-Private Declare PtrSafe Function MultiByteToWideChar Lib "kernel32" (ByVal CodePage As Long, ByVal dwFlags As Long, ByVal lpMultiByteStr As LongPtr, ByVal cbMultiByte As Long, ByVal lpWideCharStr As LongPtr, ByVal cchWideChar As Long) As Long
 
 sub main() ' {
 
     dim db as longPtr
 
-    db = openDB("C:\Users\OMIS~1.REN\AppData\Local\Temp\test.db")
+    db = openDB(environ("temp") & "\test.db")
 
     execSQL db, "create table tab(foo, bar, baz)"
 
@@ -26,6 +25,11 @@ sub main() ' {
     sqlite3_bind_null stmt, 3 
     sqlite3_step      stmt 
 
+    sqlite3_bind_int  stmt, 1, 42
+    sqlite3_bind_text stmt, 2,"Umlauts"   , -1, 0 
+    sqlite3_bind_text stmt, 3,"äöü ÄÖÜ éÉ", -1, 0
+    sqlite3_step      stmt 
+
     sqlite3_finalize  stmt
 
     selectFromTab(db)
@@ -33,37 +37,6 @@ sub main() ' {
     closeDB(db)
 
 end sub ' }
-
-
-function utf8PtrToString(byVal pUtf8String as longPtr) as string ' {
-'
-' Found @ https://github.com/govert/SQLiteForExcel/blob/master/Source/SQLite3VBAModules/Sqlite3_64.bas
-'
-
-    dim buf     as string
-    dim cSize   as long
-    dim RetVal  as long
-    dim CP_UTF8 as long
-
-    CP_UTF8 = 65001
-
-  ' cSize includes the terminating null character
-    cSize = MultiByteToWideChar(CP_UTF8, 0, pUtf8String, -1, 0, 0)
-
-    if cSize <= 1 then
-        Utf8PtrToString = ""
-        exit function
-    end if
-
-    Utf8PtrToString = string(cSize - 1, "*") ' and a termintating null char.
-
-    retVal = MultiByteToWideChar(CP_UTF8, 0, pUtf8String, -1, strPtr(Utf8PtrToString), cSize)
-    if retVal = 0 Then
-       err.raise "Utf8PtrToString error: " & err.lastDllError
-       exit function
-    end if
-
-end function ' }
 
 function openDB(fileName as string) as longPtr ' {
 
@@ -141,7 +114,7 @@ sub selectFromTab(db as longPtr) ' {
 
          elseIf sqlite3_column_type(stmt, colNo) = SQLITE_TEXT    then
 
-                cells(rowNo, colNo + 1) = Utf8PtrToString(sqlite3_column_text(stmt, colNo)) ' TODO: wrap call to Utf8PtrToString
+                cells(rowNo, colNo + 1) = sqlite3_column_text(stmt, colNo)
 
          elseIf sqlite3_column_type(stmt, colNo) = SQLITE_NULL    then
 
