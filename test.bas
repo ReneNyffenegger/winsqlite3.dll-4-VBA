@@ -1,174 +1,136 @@
-option explicit
+#
+#   Compare with https://renenyffenegger.ch/notes/development/databases/SQLite/VBA/index
+#
+
+$dbFileName = 'c:\users\rene\test.db'
+remove-item $dbFileName -errorAction ignore
+
+add-type -typeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+ 
+public static partial class sqlite {
+//
+// Version 0.01 
+
+   [DllImport("winsqlite3.dll", CharSet=CharSet.Ansi)]
+    public static extern IntPtr sqlite3_open(
+           String zFilename,
+       ref IntPtr ppDB       // db handle
+    );
+
+   [DllImport("winsqlite3.dll", CharSet=CharSet.Ansi)]
+    public static extern IntPtr sqlite3_exec(
+           IntPtr db      ,    /* An open database                                               */
+           String sql     ,    /* SQL to be evaluated                                            */
+           IntPtr callback,    /*  int (*callback)(void*,int,char**,char**) -- Callback function */
+           IntPtr cb1stArg,    /* 1st argument to callback                                       */
+       ref String errMsg       /* Error msg written here  ( char **errmsg)                       */
+    );
+
+   [DllImport("winsqlite3.dll", CharSet=CharSet.Ansi)]
+    public static extern IntPtr sqlite3_prepare_v2(
+           IntPtr db      ,     /* Database handle */
+           String zSql    ,     /* SQL statement, UTF-8 encoded */
+           IntPtr nByte   ,     /* Maximum length of zSql in bytes. */
+      ref  IntPtr sqlite3_stmt, /* int **ppStmt -- OUT: Statement handle */
+    //  ref  String pzTail        /*  const char **pzTail  --  OUT: Pointer to unused portion of zSql */
+           IntPtr pzTail       /*  const char **pzTail  --  OUT: Pointer to unused portion of zSql */
+    );
+
+   [DllImport("winsqlite3.dll")]
+    public static extern IntPtr sqlite3_bind_int(
+           IntPtr    stmt,
+           IntPtr /* int */ index,
+           IntPtr /* int */ value);
+
+   [DllImport("winsqlite3.dll", CharSet=CharSet.Ansi)]
+    public static extern IntPtr sqlite3_bind_text(
+           IntPtr    stmt,
+           IntPtr    index,
+           String    value , /* const char*  */
+           IntPtr    x     , /* What does this parameter do? */
+           IntPtr    y       /* void(*)(void*) */
+     );
+   [DllImport("winsqlite3.dll")]
+    public static extern IntPtr sqlite3_bind_null(
+           IntPtr    stmt,
+           IntPtr    index
+    );
+
+   [DllImport("winsqlite3.dll")]
+    public static extern IntPtr sqlite3_step(
+           IntPtr    stmt
+    );
+
+   [DllImport("winsqlite3.dll")]
+    public static extern IntPtr sqlite3_reset(
+           IntPtr    stmt
+    );
+
+   [DllImport("winsqlite3.dll")]
+    public static extern IntPtr sqlite3_clear_bindings(
+           IntPtr    stmt
+    );
+
+}
+"@
+
+[IntPtr]$db = 0
+$res = [sqlite]::sqlite3_open($dbFileName, [ref] $db)
+echo "$res , $db"
+
+[String]$errMsg = ''
+$res = [sqlite]::sqlite3_exec($db, 'create table tab(foo, bar, baz', 0, 0, [ref] $errMsg)
+echo "$res, $errMsg"
+
+$res = [sqlite]::sqlite3_exec($db, 'create table tab(foo, bar, baz)', 0, 0, [ref] $errMsg)
+echo "$res, $errMsg"
+
+$res = [sqlite]::sqlite3_exec($db, 'create table tab(foo, bar, baz)', 0, 0, [ref] $errMsg)
+echo "$res, $errMsg"
+
+echo "preparing statement"
+
+[IntPtr] $stmt = 0
+[String] $pzTail = ''
+$res = [sqlite]::sqlite3_prepare_v2($db, 'insert into tab values(?, ?, ?)', -1, [ref] $stmt, 0)
+echo "$res"
+
+echo "Binding values for first row"
+
+$res = [sqlite]::sqlite3_bind_int($stmt, 1, 55)
+echo "$res"
 
+$res = [sqlite]::sqlite3_bind_text($stmt, 2, 'four', -1, 0)
+echo "$res"
 
-sub main() ' {
+$res = [sqlite]::sqlite3_bind_int($stmt, 3, 333)
+echo "$res"
 
-    dim db as longPtr
+echo "Inserting 1st row"
+$res = [sqlite]::sqlite3_step($stmt)
+echo "$res (101 is expected!)"
 
-    db = openDB(environ("temp") & "\test.db")
+# $res = [sqlite]::sqlite3_clear_bindings($stmt)
+$res = [sqlite]::sqlite3_reset($stmt)
+echo "$res"
 
-    execSQL db, "create table tab(foo, bar, baz)"
+echo "Binding values for second row"
 
-    execSQL db, "insert into tab values(1, 'one', null);"
-    execSQL db, "insert into tab values(2,  2.2 ,'two');"
+$res = [sqlite]::sqlite3_bind_int($stmt, 1, 42)
+echo "$res"
 
-    dim stmt as longPtr
-    stmt = prepareStmt(db, "insert into tab values(?, ?, ?)")
+$res = [sqlite]::sqlite3_bind_text($stmt, 2, 'forty-two', -1, 0)
+echo "$res"
 
-    checkBindRetval(sqlite3_bind_int (stmt, 1, 3              ))
-    checkBindRetval(sqlite3_bind_text(stmt, 2,"three", -1, 0  ))
-    checkBindRetval(sqlite3_bind_int (stmt, 3, 333            ))
-    checkStepRetval(sqlite3_step     (stmt))
+$res = [sqlite]::sqlite3_bind_null($stmt, 3)
+echo "$res"
 
-  ' sqlite3_reset(stmt) still seems necesssary although the documentation says
-  ' that in version after 3.6.something, it should not be necessary anymore...
-  '
-  ' TODO: or should sqlite3_clear_bindings be used?
-  '
-    sqlite3_reset(stmt) ' Or sqlite3_clear_bindings() ?
+echo "Inserting 2nd row"
+$res = [sqlite]::sqlite3_step($stmt)
+echo "$res (101 is expected!)"
 
-    checkBindRetval(sqlite3_bind_int (stmt, 1, 55             ))
-    checkBindRetval(sqlite3_bind_text(stmt, 2,"four" , -1, 0  ))
-    checkBindRetval(sqlite3_bind_null(stmt, 3                 ))
-    checkStepRetval(sqlite3_step     (stmt))
-    sqlite3_reset(stmt) ' Or sqlite3_clear_bindings() ?
-
-    checkBindRetval(sqlite3_bind_int (stmt, 1, 42                 ))
-    checkBindRetval(sqlite3_bind_text(stmt, 2,"Umlauts"   , -1, 0 ))
-    checkBindRetval(sqlite3_bind_text(stmt, 3,"äöü ÄÖÜ éÉ", -1, 0 ))
-    checkStepRetval(sqlite3_step     (stmt))
-'   sqlite3_reset(stmt) ' Or sqlite3_clear_bindings() ?
-
-    sqlite3_finalize  stmt
-
-    selectFromTab(db)
-
-    closeDB(db)
-
-end sub ' }
-
-function openDB(fileName as string) as longPtr ' {
-
-    dim res as longPtr
-
-    res = sqlite3_open(fileName, openDB)
-    if res <> SQLITE_OK then
-       err.raise 1000, "openDB", "sqlite_open failed, res = " & res
-    end if
-
-    debug.print("SQLite db opened, db = " & openDB)
-
-end function ' }
-
-sub closeDB(db as longPtr) ' {
-
-    dim res as longPtr
-
-    res = sqlite3_close(db)
-    if res <> SQLITE_OK then
-       err.raise 1000, "closeDB", "sqlite_open failed, res = " & res
-    end if
-
-end sub ' }
-
-sub checkBindRetval(retVal as long) ' {
-
-    if retVal = SQLITE_OK then
-       exit sub
-    end if
-
-    if retVal = SQLITE_TOOBIG then
-       err.raise 1000, "checkBindRetval", "bind failed: String or BLOB exceeds size limit"
-    end if
-
-    if retVal = SQLITE_MISUSE then
-       err.raise 1000, "checkBindRetval", "bind failed: Library used incorrectly"
-    end if
-
-    err.raise 1000, "checkBindRetval", "bind failed, retVal = " & retVal
-
-end sub ' }
-
-sub checkStepRetval(retVal as long) ' {
-
-    if retVal = SQLITE_DONE then
-       exit sub
-    end if
-
-    err.raise 1000, "checkStepRetval", "step failed, retVal = " & retVal
-
-end sub ' }
-
-sub execSQL(db as longPtr, sql as string) ' {
-
-    dim res    as longPtr
-    dim errmsg as string
-
-    res = sqlite3_exec(db, sql, 0, 0, errmsg)
-    if res <> SQLITE_OK then
-       err.raise 1000, "execSQL", "sqlite3_exec failed, res = " & res
-    end if
-
-end sub ' }
-
-function prepareStmt(db as longPtr, sql as string) as longPtr ' {
-
-    dim res    as longPtr
-
-    res = sqlite3_prepare_v2(db, sql, -1, prepareStmt, 0)
-    if res <> SQLITE_OK then
-       err.raise 1000, "prepareStmt", "sqlite3_prepare failed, res = " & res
-    end if
-
-    debug.print("stmt = " & prepareStmt)
-
-end function ' }
-
-sub selectFromTab(db as longPtr) ' {
-
-    dim stmt as longPtr
-    stmt = prepareStmt(db, "select * from tab where foo > ? order by foo")
-
-    sqlite3_bind_int stmt, 1, 2
-
-    dim rowNo as long
-
-    while sqlite3_step(stmt) <> SQLITE_DONE ' {
-
-      rowNo = rowNo + 1
-
-      dim colNo as long
-      colNo = 0
-      while colNo <= 2 ' {
-
-         if     sqlite3_column_type(stmt, colNo) = SQLITE_INTEGER then
-
-                cells(rowNo, colNo + 1) = sqlite3_column_int(stmt, colNo)
-
-         elseIf sqlite3_column_type(stmt, colNo) = SQLITE_FLOAT   then
-
-                cells(rowNo, colNo + 1) = sqlite3_column_double(stmt, colNo)
-
-         elseIf sqlite3_column_type(stmt, colNo) = SQLITE_TEXT    then
-
-                cells(rowNo, colNo + 1) = sqlite3_column_text(stmt, colNo)
-
-         elseIf sqlite3_column_type(stmt, colNo) = SQLITE_NULL    then
-
-                cells(rowNo, colNo + 1) ="n/a"
-
-         else
-
-                cells(rowNo, colNo + 1) ="?"
-
-         end if
-
-         colNo = colNo + 1
-
-      wend ' }
-
-    wend ' }
-
-    sqlite3_finalize stmt
-
-end sub ' }
+# $res = [sqlite]::sqlite3_clear_bindings($stmt)
+# $res = [sqlite]::sqlite3_reset($stmt)
+# echo "$res"
