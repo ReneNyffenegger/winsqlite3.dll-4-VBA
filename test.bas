@@ -23,19 +23,21 @@ sub main() ' {
   ' sqlite3_reset(stmt) still seems necesssary although the documentation says
   ' that in version after 3.6.something, it should not be necessary anymore...
   '
-    sqlite3_reset(stmt)
+  ' TODO: or should sqlite3_clear_bindings be used?
+  '
+    sqlite3_reset(stmt) ' Or sqlite3_clear_bindings() ?
 
     checkBindRetval(sqlite3_bind_int (stmt, 1, 55             ))
     checkBindRetval(sqlite3_bind_text(stmt, 2,"four" , -1, 0  ))
     checkBindRetval(sqlite3_bind_null(stmt, 3                 ))
     checkStepRetval(sqlite3_step     (stmt))
-    sqlite3_reset(stmt)
+    sqlite3_reset(stmt) ' Or sqlite3_clear_bindings() ?
 
     checkBindRetval(sqlite3_bind_int (stmt, 1, 42                 ))
     checkBindRetval(sqlite3_bind_text(stmt, 2,"Umlauts"   , -1, 0 ))
     checkBindRetval(sqlite3_bind_text(stmt, 3,"äöü ÄÖÜ éÉ", -1, 0 ))
     checkStepRetval(sqlite3_step     (stmt))
-'   sqlite3_reset(stmt)
+'   sqlite3_reset(stmt) ' Or sqlite3_clear_bindings() ?
 
     sqlite3_finalize  stmt
 
