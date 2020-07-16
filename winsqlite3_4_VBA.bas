@@ -125,7 +125,7 @@ declare ptrSafe function sqlite3_column_int    lib "winsqlite3.dll" ( _
 '
 ' The string returned from SQLite needs to be converted to
 ' a wide character string in VBA. The following declaration (whose
-' name ends in an underscore) ust gets the pointer to the string.
+' name ends in an underscore) first gets the pointer to the (ASCII or UTF8) string.
 ' Further below, another function is declared, sqlite3_column_text, that
 ' takes the pointer and converts it into a wide character string, suitable
 ' for a VBA string.
